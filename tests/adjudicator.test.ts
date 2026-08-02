@@ -15,9 +15,9 @@ import {
   parseReply,
   SYSTEM_PROMPT,
 } from '../src/lib/llm/adjudicator';
-import { buildSimilarityIndex, routeMessage } from '../src/lib/router/engine';
+import { buildSimilarityIndex, routeAll, routeMessage } from '../src/lib/router/engine';
 import type { Action, RoutingDecision } from '../src/lib/router/types';
-import { makeContext, makeMessage } from './helpers';
+import { makeContext, makeMessage, realContext, realMessages } from './helpers';
 
 const context = makeContext();
 const index = buildSimilarityIndex(context);
@@ -205,5 +205,87 @@ describe('prompt construction', () => {
     const prompt = buildUserPrompt(message, decision, context, ['digest', 'mute']);
 
     expect(prompt).toContain('Candidate actions: digest or mute');
+  });
+});
+
+describe('applying a valid second opinion', () => {
+  // The failure paths were already covered; the path that actually mutates a
+  // decision was not. It is the one that runs if the adjudicator is ever
+  // enabled, so it gets asserted against the real corpus rather than a fixture.
+
+  const originalEnv = { ...process.env };
+  const realCtx = realContext();
+  const messages = realMessages();
+  const decisions = routeAll(messages, realCtx);
+
+  const borderlineIndex = decisions.findIndex(isBorderline);
+  const borderline = decisions[borderlineIndex]!;
+  const message = messages[borderlineIndex]!;
+
+  /** The runner-up action, which is the only alternative the model may name. */
+  const runnerUp = (['notify', 'digest', 'mute'] as const)
+    .map((action) => ({ action, score: borderline.scores[action] }))
+    .sort((a, b) => b.score - a.score)[1]!.action;
+
+  function mockReply(action: Action): void {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          choices: [{ message: { content: JSON.stringify({ action, rationale: 'because' }) } }],
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } },
+      ),
+    );
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    process.env.ROUTER_LLM_ADJUDICATOR = 'on';
+    process.env.GROQ_API_KEY = 'test-key';
+  });
+
+  afterEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  it('reviews only the genuinely borderline messages, not the whole batch', async () => {
+    mockReply(runnerUp);
+    await adjudicateBatch(decisions, messages, realCtx);
+    // One request, because exactly one decision in the corpus is borderline.
+    expect(vi.mocked(globalThis.fetch)).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies a valid reply and records what it changed', async () => {
+    mockReply(runnerUp);
+    const after = await adjudicateBatch(decisions, messages, realCtx);
+    const revised = after[borderlineIndex]!;
+
+    expect(revised.prediction.action).toBe(runnerUp);
+    expect(revised.adjudication).toMatchObject({
+      applied: true,
+      from: borderline.prediction.action,
+      to: runnerUp,
+      rationale: 'because',
+    });
+  });
+
+  it('records agreement without touching the prediction', async () => {
+    mockReply(borderline.prediction.action);
+    const after = await adjudicateBatch(decisions, messages, realCtx);
+    const reviewed = after[borderlineIndex]!;
+
+    expect(reviewed.prediction).toEqual(borderline.prediction);
+    expect(reviewed.adjudication?.applied).toBe(false);
+  });
+
+  it('leaves every non-borderline decision untouched', async () => {
+    mockReply(runnerUp);
+    const after = await adjudicateBatch(decisions, messages, realCtx);
+
+    after.forEach((decision, i) => {
+      if (i === borderlineIndex) return;
+      expect(decision.prediction).toEqual(decisions[i]!.prediction);
+      expect(decision.adjudication).toBeUndefined();
+    });
   });
 });

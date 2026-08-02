@@ -146,10 +146,10 @@ ROUTER_LLM_ADJUDICATOR=on
 GROQ_API_KEY=…
 ```
 
-Gives a second opinion on the small number of cases where the top two actions scored within
-0.08 of each other. It is excluded from safety decisions entirely, may only choose between the
-two actions the engine was already weighing, and any malformed, slow or failed response leaves
-the deterministic answer standing.
+Gives a second opinion where the top two actions scored within 0.08 of each other — **exactly
+one message of the 110 in this corpus** (`msg_053`, margin 0.04). It is excluded from safety
+decisions entirely, may only choose between the two actions the engine was already weighing,
+and any malformed, slow or failed response leaves the deterministic answer standing.
 
 **It currently changes zero decisions, and that is the reported result rather than an
 untested assumption.** Its value here was diagnostic. A rule system is hard to audit against
@@ -207,7 +207,7 @@ round trip cannot promise.
 | `npm run explain -- <id>` | Full signal trace for one message |
 | `npm run dev` | Web app on :3000 |
 | `npm run build` | Production build |
-| `npm test` | 151 tests |
+| `npm test` | 155 tests |
 | `npm run test:coverage` | Tests with coverage thresholds |
 | `npm run verify` | typecheck → lint → test → route → evaluate |
 | `npm run analyze:media` | Regenerates the media analysis cache |
@@ -231,7 +231,7 @@ src/lib/llm/adjudicator.ts   Optional Groq second opinion
 src/lib/eval/score.ts        Scoring harness
 src/app/                     Next.js App Router pages
 scripts/                     CLI entry points
-tests/                       151 tests
+tests/                       155 tests
 supabase/schema.sql          Postgres schema with RLS
 ```
 
