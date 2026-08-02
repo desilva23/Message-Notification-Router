@@ -12,10 +12,18 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
-  // Media files live under dataset/media and are copied into public/media at
-  // build time by scripts/prepare-public-media.ts.
+  // The CSV fallback reads dataset/ from disk at request time, but the paths are
+  // built at runtime (join(cwd, 'dataset', file)), so Next's static import
+  // tracing cannot see them and would ship a serverless bundle without them.
+  // Every route needs the include, not just '/api/**': this app has no API
+  // routes, and '/' renders dynamically because it filters on searchParams.
+  //
+  // Only the files actually read on the server are listed. dataset/media is
+  // deliberately excluded — it is 11 MB, and scripts/prepare-public-media.ts
+  // copies it into public/ at build time, so it is served as a static asset
+  // rather than read by a function.
   outputFileTracingIncludes: {
-    '/api/**': ['./dataset/**'],
+    '/**': ['./dataset/*.csv', './dataset/media_analysis.json'],
   },
 
   async headers() {
