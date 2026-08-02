@@ -207,7 +207,7 @@ round trip cannot promise.
 | `npm run explain -- <id>` | Full signal trace for one message |
 | `npm run dev` | Web app on :3000 |
 | `npm run build` | Production build |
-| `npm test` | 142 tests |
+| `npm test` | 151 tests |
 | `npm run test:coverage` | Tests with coverage thresholds |
 | `npm run verify` | typecheck → lint → test → route → evaluate |
 | `npm run analyze:media` | Regenerates the media analysis cache |
@@ -231,7 +231,7 @@ src/lib/llm/adjudicator.ts   Optional Groq second opinion
 src/lib/eval/score.ts        Scoring harness
 src/app/                     Next.js App Router pages
 scripts/                     CLI entry points
-tests/                       142 tests
+tests/                       151 tests
 supabase/schema.sql          Postgres schema with RLS
 ```
 

@@ -74,7 +74,8 @@ export function isBorderline(decision: RoutingDecision): boolean {
   return decision.margin < BORDERLINE_MARGIN;
 }
 
-const SYSTEM_PROMPT = `You are reviewing a notification-routing decision for a messaging app.
+/** Exported for test: the delimiter rule below is load-bearing, not decoration. */
+export const SYSTEM_PROMPT = `You are reviewing a notification-routing decision for a messaging app.
 
 You will receive a message and the two routing actions a deterministic engine scored most closely. Choose which of those two actions is better for this specific user.
 
@@ -121,7 +122,11 @@ function topTwo(decision: RoutingDecision): [Action, Action] {
   return [ranked[0]?.action ?? 'digest', ranked[1]?.action ?? 'digest'];
 }
 
-function buildUserPrompt(
+/**
+ * Exported for test: the fencing and the stripping it relies on are security
+ * properties, and an untested security claim is just a comment.
+ */
+export function buildUserPrompt(
   message: Message,
   decision: RoutingDecision,
   context: RouterContext,
