@@ -1,0 +1,22 @@
+node_modules/
+.next/
+out/
+coverage/
+.vercel
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets — never commit
+.env
+.env.local
+.env*.local
+
+# Generated at build time from dataset/media
+public/media/
+
+# Generated artifacts — regenerate with `npm run route -- --json` / `npm run package`
+# (output.csv IS committed: it is the submission deliverable)
+code.zip
+output.decisions.json
+
+.DS_Store
