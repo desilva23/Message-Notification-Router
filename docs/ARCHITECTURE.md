@@ -21,7 +21,45 @@ The decision is a sum you can read line by line, which means:
 
 The LLM is kept as an *adjudicator* on genuinely borderline cases rather than the primary
 decision-maker — the place where its judgement adds something the rules cannot, without
-putting it anywhere near the safety path.
+putting it anywhere near the safety path. What it was actually worth is set out below.
+
+---
+
+## What the adjudicator was worth
+
+It changes zero decisions today, so it is worth being precise about why it exists rather than
+letting it read as unused scaffolding.
+
+**Its role is verification, not decision.** A rule system cannot audit itself: the same
+assumptions that produce a wrong rule produce the test that agrees with it. What finds those
+bugs is a second opinion with *uncorrelated* failure modes, followed by investigating every
+disagreement rather than averaging it away. That is how the adjudicator was used.
+
+It disagreed on a handful of borderline messages. Three were real defects in the rules:
+
+| Defect | Fix |
+|---|---|
+| `"for the next N minutes"` not matched as urgency | broadened the countdown patterns in `lexicons.ts` |
+| direct ask + same-day deadline scored no urgency | added `intent.same_day_deadline` |
+| mute reason said the user "usually ignores" this while citing evidence they *opened* it | reason/evidence coherence guard in `reasons.ts` |
+
+Every fix landed in the deterministic engine; none was delegated to the model. The third
+generalised into an invariant — a reason may never contradict the evidence it cites — asserted
+across all 110 rows in `tests/contract.test.ts`. Six regression tests hold the set shut.
+
+So "zero decisions changed" is a **measured convergence result, not silence**: before these
+fixes the two disagreed, and after them they do not. That is a stronger statement about the
+rules than never having checked.
+
+Two properties keep it honest as a shipped component rather than dead code. It is called on
+every run (`scripts/route.ts`) and no-ops when unconfigured, so it is a config branch and not
+an unreferenced module. And 14 tests cover it, including that a failed request, a malformed
+reply, an out-of-enum action and an action the engine was not weighing all leave the
+deterministic decision untouched.
+
+It is off for the submission because reproducing `output.csv` must not depend on an API key,
+a network round trip, or a model version. `temperature: 0` bounds variance; it does not
+promise bit-identical tokens across serving stacks.
 
 ---
 

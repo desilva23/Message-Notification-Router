@@ -151,6 +151,31 @@ Gives a second opinion on the small number of cases where the top two actions sc
 two actions the engine was already weighing, and any malformed, slow or failed response leaves
 the deterministic answer standing.
 
+**It currently changes zero decisions, and that is the reported result rather than an
+untested assumption.** Its value here was diagnostic. A rule system is hard to audit against
+itself, so the adjudicator was used as a differential-testing oracle: something with
+uncorrelated failure modes that disagrees, after which every disagreement gets investigated.
+Three of them turned out to be real defects in the rules:
+
+- `"for the next N minutes"` was not matched as urgency
+- a direct ask carrying a same-day deadline scored no urgency at all
+- a mute reason claimed the user "usually ignores" this while citing evidence that they had
+  *opened* the earlier message
+
+All three were fixed **in the deterministic engine**, not delegated to the model, and the
+third motivated the reason/evidence coherence invariant asserted in `tests/contract.test.ts`.
+Six regression tests hold them shut. The engine and the adjudicator agreeing everywhere is
+what that work bought; before the fixes they disagreed.
+
+It stays wired — `scripts/route.ts` calls it on every run and it no-ops when unconfigured —
+because the rules are tuned against 110 messages, and on unseen traffic the borderline set
+grows. It is the fail-closed handler for that tail.
+
+Why it is off for the submission: reproducing `output.csv` must not require an API key, a
+network round trip, or a specific model version. `temperature: 0` bounds variance, it does not
+promise bit-identical tokens across serving stacks. A deliverable that cannot be reproduced
+is not a deliverable.
+
 ### Supabase — data layer
 
 ```bash
@@ -177,7 +202,7 @@ clones the repo with no credentials.
 | `npm run explain -- <id>` | Full signal trace for one message |
 | `npm run dev` | Web app on :3000 |
 | `npm run build` | Production build |
-| `npm test` | 132 tests |
+| `npm test` | 138 tests |
 | `npm run test:coverage` | Tests with coverage thresholds |
 | `npm run verify` | typecheck → lint → test → route → evaluate |
 | `npm run analyze:media` | Regenerates the media analysis cache |
@@ -201,7 +226,7 @@ src/lib/llm/adjudicator.ts   Optional Groq second opinion
 src/lib/eval/score.ts        Scoring harness
 src/app/                     Next.js App Router pages
 scripts/                     CLI entry points
-tests/                       132 tests
+tests/                       138 tests
 supabase/schema.sql          Postgres schema with RLS
 ```
 
