@@ -176,7 +176,7 @@ network round trip, or a specific model version. `temperature: 0` bounds varianc
 promise bit-identical tokens across serving stacks. A deliverable that cannot be reproduced
 is not a deliverable.
 
-### Supabase — data layer
+### Supabase — optional mirror
 
 ```bash
 psql "$SUPABASE_DB_URL" -f supabase/schema.sql
@@ -186,9 +186,14 @@ npm run db:seed
 Mirrors the dataset into Postgres and records each routing run with its full signal trace. Row
 level security is enabled on every table and no policy grants write access to the anon key.
 
-When Supabase is unconfigured *or unreachable*, the app falls back to the bundled CSV snapshot
-and says so in the UI. That fallback is what keeps the solution runnable for a reviewer who
-clones the repo with no credentials.
+**It is a mirror, not a source.** Rendering always reads the bundled CSV snapshot; the app
+probes Supabase with a `head: true` count purely so the UI can report whether the mirror is
+answering, and no rendered value is derived from it. The snapshot field is named
+`mirror: MirrorStatus` for that reason rather than naming a data source.
+
+Reading through it would break the submission contract: a reviewer clones the repo with no
+credentials and must reproduce `output.csv` exactly, which a render path depending on a network
+round trip cannot promise.
 
 ---
 
@@ -202,7 +207,7 @@ clones the repo with no credentials.
 | `npm run explain -- <id>` | Full signal trace for one message |
 | `npm run dev` | Web app on :3000 |
 | `npm run build` | Production build |
-| `npm test` | 138 tests |
+| `npm test` | 142 tests |
 | `npm run test:coverage` | Tests with coverage thresholds |
 | `npm run verify` | typecheck → lint → test → route → evaluate |
 | `npm run analyze:media` | Regenerates the media analysis cache |
@@ -226,7 +231,7 @@ src/lib/llm/adjudicator.ts   Optional Groq second opinion
 src/lib/eval/score.ts        Scoring harness
 src/app/                     Next.js App Router pages
 scripts/                     CLI entry points
-tests/                       138 tests
+tests/                       142 tests
 supabase/schema.sql          Postgres schema with RLS
 ```
 

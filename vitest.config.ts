@@ -7,6 +7,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `server-only` throws on import outside a React Server Component. That
+      // guard is wanted in the build, but it also makes the modules it protects
+      // impossible to unit test, so the suite swaps it for an inert stub.
+      'server-only': fileURLToPath(new URL('./tests/stubs/server-only.ts', import.meta.url)),
     },
   },
   test: {

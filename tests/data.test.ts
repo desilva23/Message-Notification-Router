@@ -5,6 +5,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { evaluate, formatReport } from '../src/lib/eval/score';
 import { getServiceClient, isSupabaseConfigured } from '../src/lib/data/supabase';
+import { mirrorStatus } from '../src/lib/data/repository';
 import { loadMediaPaths } from '../src/lib/data/load';
 import { REASONS } from '../src/lib/router/reasons';
 import type { LabelledMessage, Prediction } from '../src/lib/router/types';
@@ -133,5 +134,28 @@ describe('evaluation harness', () => {
     const report = formatReport(evaluate([prediction({ action: 'mute' })], [label({})]));
     expect(report).toContain('action accuracy');
     expect(report).toContain('notify → mute');
+  });
+});
+
+describe('supabase mirror status', () => {
+  // The mirror is a liveness indicator, not a data source: rendering always
+  // reads the bundled snapshot. These assert the reported status cannot imply
+  // otherwise — two of the three branches need credentials and a network round
+  // trip to reach in situ, so they would otherwise ship unverified.
+
+  it('reports not-configured when no credentials are present', () => {
+    expect(mirrorStatus(false, false)).toBe('not-configured');
+  });
+
+  it('stays not-configured even if a probe somehow succeeded', () => {
+    expect(mirrorStatus(false, true)).toBe('not-configured');
+  });
+
+  it('reports live when configured and the probe answered', () => {
+    expect(mirrorStatus(true, true)).toBe('live');
+  });
+
+  it('reports unreachable when configured but the probe failed', () => {
+    expect(mirrorStatus(true, false)).toBe('unreachable');
   });
 });

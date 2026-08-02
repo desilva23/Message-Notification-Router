@@ -1,12 +1,17 @@
 /**
  * The view of the data the web app renders.
  *
- * Reads from Supabase when it is configured and falls back to the bundled CSV
- * snapshot otherwise, so the site is fully functional either way. The fallback
- * is what lets a reviewer clone the repo and run it with no credentials, and it
- * is also what keeps the page rendering if Supabase is unreachable — a routing
- * dashboard that goes blank because a database blinked would be a worse product
- * than one that shows the snapshot and says so.
+ * Rendering always reads the bundled CSV snapshot. That is a deliberate choice,
+ * not a missing feature: the submission contract requires a reviewer to clone
+ * the repo with no credentials and reproduce `output.csv` exactly, so the render
+ * path cannot depend on a network round trip or on whichever rows a database
+ * happens to hold. Routing is a pure function of the snapshot either way.
+ *
+ * Supabase is therefore a *mirror*, not a source. `supabase/schema.sql` and
+ * `npm run db:seed` publish the same reference data to Postgres under row level
+ * security, and this module probes it so the UI can report whether that mirror
+ * is answering. The probe is a `head: true` count — it returns no rows, and no
+ * rendered value is ever derived from it. Nothing downstream reads Supabase.
  *
  * Server-only. Reads the filesystem and, when configured, holds a Supabase
  * client; never import this from a client component.
@@ -19,12 +24,34 @@ import { evaluate, type EvaluationResult } from '../eval/score';
 import { routeAll } from '../router/engine';
 import type { Message, RouterContext, RoutingDecision } from '../router/types';
 
-export type DataSource = 'supabase' | 'local-csv';
+/**
+ * Liveness of the optional Supabase mirror.
+ *
+ * Deliberately not a provenance field. An earlier `DataSource` named this
+ * `'supabase' | 'local-csv'`, which read as though the rendered rows had come
+ * from whichever one won — they never do. Naming it for what it measures keeps
+ * the UI from making a claim the code does not support.
+ */
+export type MirrorStatus = 'live' | 'unreachable' | 'not-configured';
+
+/**
+ * Maps probe results onto the reported status.
+ *
+ * Pure and exported so the three branches are directly testable — the caller
+ * needs credentials and a network round trip to reach two of them, which is
+ * exactly the kind of code that otherwise ships unverified.
+ */
+export function mirrorStatus(configured: boolean, reachable: boolean): MirrorStatus {
+  if (!configured) return 'not-configured';
+  return reachable ? 'live' : 'unreachable';
+}
 
 export interface RoutingSnapshot {
-  source: DataSource;
-  /** Set when Supabase was configured but could not be reached. */
-  degraded: boolean;
+  /**
+   * Whether the Supabase mirror answered. Reporting only — every field below is
+   * computed from the bundled snapshot regardless of this value.
+   */
+  mirror: MirrorStatus;
   context: RouterContext;
   messages: Message[];
   decisions: RoutingDecision[];
@@ -83,8 +110,7 @@ export async function getRoutingSnapshot(): Promise<RoutingSnapshot> {
   );
 
   cached = {
-    source: reachable ? 'supabase' : 'local-csv',
-    degraded: configured && !reachable,
+    mirror: mirrorStatus(configured, reachable),
     context,
     messages,
     decisions,

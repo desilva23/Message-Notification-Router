@@ -84,8 +84,13 @@ export default async function TriagePage({ searchParams }: PageProps) {
         </dl>
 
         <p className="text-xs text-muted">
-          Data source: <strong>{snapshot.source === 'supabase' ? 'Supabase' : 'bundled CSV snapshot'}</strong>
-          {snapshot.degraded && ' — Supabase is configured but unreachable, so the snapshot is being used.'}
+          Routed locally from the <strong>bundled CSV snapshot</strong>, so these decisions are
+          reproducible without credentials.{' '}
+          {snapshot.mirror === 'live'
+            ? 'The optional Supabase mirror of the same reference data is live.'
+            : snapshot.mirror === 'unreachable'
+              ? 'The optional Supabase mirror is configured but unreachable; nothing rendered here depends on it.'
+              : 'The optional Supabase mirror is not configured.'}
         </p>
       </section>
 

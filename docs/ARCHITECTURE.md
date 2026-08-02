@@ -178,13 +178,24 @@ scorer's lookups would be a linear scan and the run would be quadratic.
 
 ## Data layer
 
-Supabase is optional. `repository.ts` probes it and falls back to the bundled CSV snapshot when
-it is unconfigured *or unreachable*, surfacing which source answered in the UI.
+Supabase is a **mirror, not a source**, and the distinction is deliberate enough to be worth
+stating precisely.
 
-The fallback is what keeps the submission contract satisfied — a reviewer cloning the repo has
-no credentials, and a solution that required them would not be runnable from a terminal. It
-also means a database blink degrades the dashboard to "showing the snapshot" rather than to a
-blank page.
+Rendering always reads the bundled CSV snapshot. `supabase/schema.sql` and `npm run db:seed`
+publish the same reference data to Postgres under row level security, and `repository.ts`
+probes it with a `head: true` count so the UI can report whether that mirror is answering. The
+probe returns no rows. No rendered value is derived from it, and nothing downstream reads
+Supabase.
+
+That is why the snapshot field is named `mirror: MirrorStatus` rather than a data source. An
+earlier revision called it `source: 'supabase' | 'local-csv'`, which read as though the rows
+had come from whichever one won — they never do. Naming it for what it measures stops the UI
+making a claim the code does not support.
+
+The reason for the design is the submission contract: a reviewer clones the repo with no
+credentials and must reproduce `output.csv` exactly. A render path that depended on a network
+round trip, or on whichever rows a database happened to hold, could not promise that. It also
+means a database blink changes a status line rather than blanking the dashboard.
 
 Routing always runs locally against the same engine either way, so displayed decisions never
 depend on which source answered.
